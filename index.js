@@ -54,17 +54,56 @@ async function checkPrices() {
 
 async function sendDiscordAlert(item) {
   try {
+    const preco = item.price || 0;
+    const nome = item.title || "Conta Valorant";
+
+    const imagem =
+      item.image ||
+      item.thumbnail ||
+      item.image_url ||
+      item.cover ||
+      null;
+
     await axios.post(DISCORD_WEBHOOK, {
-      content: `🚨 Conta barata encontrada!
-💰 Preço: R$${item.price}
-📦 ${item.title || "Conta Valorant"}
-🔗 https://www.reidasnfa.com.br/jogo/valorant`
+      username: "BOT NFA",
+      avatar_url: "https://cdn-icons-png.flaticon.com/512/5968/5968292.png",
+
+      embeds: [
+        {
+          title: "🔥 CONTA BARATA ENCONTRADA 🔥",
+          description: `💸 **R$${preco}**\n📦 ${nome}`,
+          url: "https://www.reidasnfa.com.br/jogo/valorant",
+          color: 5763719,
+
+          fields: [
+            { name: "💰 Preço", value: `R$${preco}`, inline: true },
+            { name: "📊 Status", value: "Disponível", inline: true },
+            {
+              name: "⚡ Oportunidade",
+              value: preco <= 50 ? "🔥 MUITO BARATO" : "💥 BOM PREÇO",
+              inline: true
+            }
+          ],
+
+          image: imagem ? { url: imagem } : undefined,
+
+          thumbnail: {
+            url: "https://cdn-icons-png.flaticon.com/512/5968/5968292.png"
+          },
+
+          footer: {
+            text: "BOT AUTOMÁTICO • MONITORANDO 24H"
+          },
+
+          timestamp: new Date().toISOString()
+        }
+      ]
     });
+
   } catch (err) {
     console.log("Erro webhook:", err.message);
   }
 }
-
 // roda a cada 2 minutos
 setInterval(checkPrices, 2 * 60 * 1000);
 
