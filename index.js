@@ -1,5 +1,5 @@
 const axios = require("axios");
-const fs = require("fs"); 
+const fs = require("fs");
 
 // CONFIG
 const API_URL = "https://mggiffyyfgtpqaxohzll.supabase.co/rest/v1/products_public?select=title,price,id&status=eq.available&order=created_at.desc&limit=100";
@@ -19,6 +19,36 @@ try {
   console.log("Criando lista nova...");
 }
 
+// 🔥 pegar imagem leve (SEM puppeteer)
+async function getImagem(productId) {
+  try {
+    const res = await axios.get(
+      `https://mggiffyyfgtpqaxohzll.supabase.co/rest/v1/valorant_inventory?product_id=eq.${productId}&limit=1`,
+      {
+        headers: {
+          apikey: API_KEY,
+          Authorization: `Bearer ${API_KEY}`
+        }
+      }
+    );
+
+    if (res.data && res.data.length > 0) {
+      const item = res.data[0];
+
+      return (
+        item.image ||
+        item.icon ||
+        item.thumbnail ||
+        null
+      );
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 // 🚀 FUNÇÃO PRINCIPAL
 async function checkPrices() {
   try {
@@ -27,8 +57,7 @@ async function checkPrices() {
         apikey: API_KEY,
         Authorization: `Bearer ${API_KEY}`,
         "Content-Type": "application/json",
-        "Accept": "application/json",
-        "Prefer": "return=representation"
+        "Accept": "application/json"
       }
     });
 
@@ -54,10 +83,16 @@ async function checkPrices() {
       const id = item.id + "_" + preco;
 
       if (!enviados.has(id)) {
-        await sendDiscordAlert(item);
+        // 🔥 pega imagem antes de enviar
+        const imagem = await getImagem(item.id);
 
-        // delay anti 429
-        await new Promise(r => setTimeout(r, 1500));
+        await sendDiscordAlert({
+          ...item,
+          image: imagem
+        });
+
+        // delay anti rate limit
+        await new Promise(r => setTimeout(r, 1200));
 
         enviados.add(id);
 
@@ -81,13 +116,6 @@ async function sendDiscordAlert(item) {
     const preco = item.price || 0;
     const nome = item.title || "Conta Valorant";
 
-    const imagem =
-      item.image ||
-      item.thumbnail ||
-      item.cover ||
-      item.image_url ||
-      null;
-
     await axios.post(DISCORD_WEBHOOK, {
       username: "BOT NFA",
       avatar_url: "https://cdn-icons-png.flaticon.com/512/5968/5968292.png",
@@ -109,7 +137,10 @@ async function sendDiscordAlert(item) {
             }
           ],
 
-          image: imagem ? { url: imagem } : undefined,
+          // 🔥 imagem real ou fallback
+          image: {
+            url: item.image || "https://i.imgur.com/3ZQ3Z6P.png"
+          },
 
           thumbnail: {
             url: "https://cdn-icons-png.flaticon.com/512/5968/5968292.png"
