@@ -1,30 +1,41 @@
 const axios = require("axios");
+const fs = require("fs");
 
 // CONFIG
-const API_URL = "https://mggiffyyfgtpqaxohzll.supabase.co/rest/v1/products_public?select=*,game_categories(*)&status=eq.available&order=featured.desc,created_at.desc&limit=500&category_id=eq.30860902-2e86-45d0-a247-e33776e8a3b6";
+const API_URL = "https://mggiffyyfgtpqaxohzll.supabase.co/rest/v1/products_public?select=title,price,id,image,thumbnail,cover,image_url&status=eq.available&order=created_at.desc&limit=100";
 
 const MAX_PRICE = 100;
-const DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1484027431525290085/l9u2VYEBSSTAhTkar8PxD5zwc1TBG4AFx-ncKiz_dDseAMW6o-OyuBG4SdlTRShlVrVL";
-
-// ⚠️ ESSA CHAVE VEM DO REQUEST (obrigatório)
 const API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1nZ2lmZnl5Zmd0cHFheG9oemxsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIyOTQ1MzQsImV4cCI6MjA4Nzg3MDUzNH0.ZXATZ9P7rfuuLRB_bBxYnHZHGWNqCP_jl92VCzZ-ia0";
+const DISCORD_WEBHOOK = "https://discord.com/api/webhooks/1484027431525290085/l9u2VYEBSSTAhTkar8PxD5zwc1TBG4AFx-ncKiz_dDseAMW6o-OyuBG4SdlTRShlVrVL";
 
 let enviados = new Set();
 
+// carregar enviados
+try {
+  const data = fs.readFileSync("enviados.json");
+  enviados = new Set(JSON.parse(data));
+  console.log("Carregado enviados:", enviados.size);
+} catch {
+  console.log("Criando lista nova...");
+}
+
+// 🚀 FUNÇÃO PRINCIPAL
 async function checkPrices() {
   try {
     const response = await axios.get(API_URL, {
       headers: {
-        "apikey": API_KEY,
-        "Authorization": `Bearer ${API_KEY}`,
-        "Content-Type": "application/json"
+        apikey: API_KEY,
+        Authorization: `Bearer ${API_KEY}`,
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "Prefer": "return=representation"
       }
     });
 
     const produtos = response.data;
 
-    if (!Array.isArray(produtos)) {
-      console.log("Erro: resposta inválida");
+    if (!Array.isArray(produtos) || produtos.length === 0) {
+      console.log("⚠️ API não retornou produtos");
       return;
     }
 
@@ -36,12 +47,24 @@ async function checkPrices() {
     console.log("Produtos encontrados:", produtos.length);
     console.log("Baratos:", baratos.length);
 
-    for (let item of baratos) {
-      const id = item.id;
+    const LIMIT = 5;
+
+    for (let item of baratos.slice(0, LIMIT)) {
+      const preco = Number(item.price || 0);
+      const id = item.id + "_" + preco;
 
       if (!enviados.has(id)) {
         await sendDiscordAlert(item);
+
+        // delay anti 429
+        await new Promise(r => setTimeout(r, 1500));
+
         enviados.add(id);
+
+        fs.writeFileSync(
+          "enviados.json",
+          JSON.stringify([...enviados], null, 2)
+        );
       }
     }
 
@@ -52,6 +75,7 @@ async function checkPrices() {
   console.log("Verificado:", new Date().toLocaleTimeString());
 }
 
+// 🔥 DISCORD
 async function sendDiscordAlert(item) {
   try {
     const preco = item.price || 0;
@@ -60,8 +84,8 @@ async function sendDiscordAlert(item) {
     const imagem =
       item.image ||
       item.thumbnail ||
-      item.image_url ||
       item.cover ||
+      item.image_url ||
       null;
 
     await axios.post(DISCORD_WEBHOOK, {
@@ -92,7 +116,7 @@ async function sendDiscordAlert(item) {
           },
 
           footer: {
-            text: "BOT AUTOMÁTICO • MONITORANDO 24H"
+            text: "BOT AUTOMÁTICO • 24H"
           },
 
           timestamp: new Date().toISOString()
@@ -104,8 +128,9 @@ async function sendDiscordAlert(item) {
     console.log("Erro webhook:", err.message);
   }
 }
-// roda a cada 2 minutos
+
+// ⏱ loop
 setInterval(checkPrices, 2 * 60 * 1000);
 
-// primeira execução
+// start
 checkPrices();
