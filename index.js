@@ -1,8 +1,8 @@
 const axios = require("axios");
-const fs = require("fs");
+const fs = require("fs"); 
 
 // CONFIG
-const API_URL = "https://mggiffyyfgtpqaxohzll.supabase.co/rest/v1/products_public?select=title,price,id,image,thumbnail,cover,image_url&status=eq.available&order=created_at.desc&limit=100";
+const API_URL = "https://mggiffyyfgtpqaxohzll.supabase.co/rest/v1/products_public?select=title,price,id&status=eq.available&order=created_at.desc&limit=100";
 
 const MAX_PRICE = 100;
 const API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1nZ2lmZnl5Zmd0cHFheG9oemxsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIyOTQ1MzQsImV4cCI6MjA4Nzg3MDUzNH0.ZXATZ9P7rfuuLRB_bBxYnHZHGWNqCP_jl92VCzZ-ia0";
